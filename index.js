@@ -19,10 +19,13 @@ async function handleUpload(request) {
     const raw = await request.text()
     const fileBlob = dataURLtoBlob(raw)
 
+    const expiryDate = new Date()
+    expiryDate.setDate(expiryDate.getDate() + 30)
     const cacheResponse = new Response(fileBlob, {
-      headers: {
-        'Cache-Control': 'public, max-age: 2592000'
-      }
+        headers: {
+            'Cache-Control': 'public, max-age: 2592000',
+            'Expires': expiryDate.toUTCString()
+        }
     })
     await cache.put(cacheKey, cacheResponse)
 
