@@ -11,6 +11,17 @@ The file size is theoretically only limited by the Worker memory limit (128MB).
 
 Cloudflare Workers do not support file uploads natively. The API therefore accepts the file as raw text encoded as a [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs).
 
+#### Request
+
 ```shell script
 curl - X POST -H "Content-Type: text/plain" --data 'data:image/jpeg;base64,/9j/2wBDAAUDBAQEAwUEBAQFBQUGBwwIB...' https://workers-cdn.x.workers.dev
+```
+
+#### Response
+
+```json
+{
+  "name": "qrpkheu97q",
+  "url": "https://worker-cdn.x.workers.dev/qrpkheu97q"
+}
 ```
