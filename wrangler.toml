@@ -5,3 +5,11 @@ account_id = "42459c568b12d0902eeac887235b0c41"
 workers_dev = true
 route = ""
 zone_id = ""
+
+[build.upload]
+dir = "src"
+format = "modules"
+main = "./index.mjs"
+
+[durable_objects]
+bindings = [{name = "PROXY", class_name = "Proxy"}]

@@ -1,18 +1,37 @@
-addEventListener('fetch', event => {
-    event.respondWith(handleRequest(event.request))
-})
+export class Proxy {
+    constructor(state, env) {
+        this.storage = state.storage
+        this.env = env
 
-function handleRequest(request) {
-    if (request.method === 'POST') {
-        return handleUpload(request)
-    } else {
-        return handleServe(request)
+        this.bound = false
+    }
+
+    async bindLocation() {
+        if (this.bound) return
+        this.bound = await this.storage.get('bound') ?? false
+        if (!this.bound) {
+            await this.storage.put('bound', true)
+            this.bound = true
+        }
+    }
+
+    async fetch(request) {
+        await this.bindLocation()
+        return handleRequest(request, this.env)
     }
 }
 
-const cache = caches.default
+function handleRequest(request, env) {
+    if (request.method === 'POST') {
+        return handleUpload(request, env)
+    } else {
+        return handleServe(request, env)
+    }
+}
 
-async function handleUpload(request) {
+async function handleUpload(request, env) {
+    const cache = caches.default
+
     const fileName = generateUniqueId()
     const cacheKey = constructCacheKey(fileName)
 
@@ -37,11 +56,12 @@ async function handleUpload(request) {
     )
 }
 
-async function handleServe(request) {
+async function handleServe(request, env) {
+    const cache = caches.default
+
     const {pathname} = new URL(request.url)
     const fileName = pathname.replace(/\//g, '')
     const cacheKey = constructCacheKey(fileName)
-    console.log(cacheKey)
 
     const file = await cache.match(cacheKey)
     if (file) {
@@ -72,3 +92,10 @@ function dataURLtoBlob(dataURL) {
     return new Blob([u8arr], {type: mime});
 }
 
+export default {
+    fetch(request, env) {
+        const proxyId = env.PROXY.idFromName('proxy')
+        const proxyObject = env.PROXY.get(proxyId)
+        return proxyObject.fetch(request)
+    }
+}

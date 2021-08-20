@@ -5,6 +5,12 @@ All content is stored for up to 30 days and served directly from the Cloudflare 
 
 The file size is theoretically only limited by the Worker memory limit (128MB).
 
+## Disclaimer
+
+This version of the CDN uses Durable Objects to ensure that all requests are routed through the same Cloudflare location. 
+Durable Objects are still in beta and are only available on the paid plan.
+Use the `no-durable-objects` branch if you don't have access to Durable Objects, requests from different locations might fail tho.
+
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/merlinfuchs/workers-cdn)
 
 ## Uploading
