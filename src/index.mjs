@@ -1,5 +1,7 @@
-export class Proxy {
+export class File {
     constructor(state, env) {
+        this.rawId = state.id
+        this.id = state.id.toString()
         this.storage = state.storage
         this.env = env
 
@@ -15,65 +17,60 @@ export class Proxy {
         }
     }
 
+    constructCacheKey() {
+        // has to be a fully qualified URL
+        return `https://cdn.com/${this.id}`
+    }
+
     async fetch(request) {
         await this.bindLocation()
-        return handleRequest(request, this.env)
-    }
-}
 
-function handleRequest(request, env) {
-    if (request.method === 'POST') {
-        return handleUpload(request, env)
-    } else {
-        return handleServe(request, env)
-    }
-}
-
-async function handleUpload(request, env) {
-    const cache = caches.default
-
-    const fileName = generateUniqueId()
-    const cacheKey = constructCacheKey(fileName)
-
-    const raw = await request.text()
-    const fileBlob = dataURLtoBlob(raw)
-
-    const expiryDate = new Date()
-    expiryDate.setDate(expiryDate.getDate() + 30)
-    const cacheResponse = new Response(fileBlob, {
-        headers: {
-            'Cache-Control': 'public, max-age: 2592000',
-            'Expires': expiryDate.toUTCString()
+        if (request.method === 'POST') {
+            return await this.upload(request)
+        } else {
+            return await this.download(request)
         }
-    })
-    await cache.put(cacheKey, cacheResponse)
-
-    const requestURL = new URL(request.url)
-    requestURL.pathname = `/${fileName}`
-    return new Response(
-        JSON.stringify({name: fileName, url: requestURL.toString()}),
-        {headers: {'content-type': 'application/json'}}
-    )
-}
-
-async function handleServe(request, env) {
-    const cache = caches.default
-
-    const {pathname} = new URL(request.url)
-    const fileName = pathname.replace(/\//g, '')
-    const cacheKey = constructCacheKey(fileName)
-
-    const file = await cache.match(cacheKey)
-    if (file) {
-        return file
-    } else {
-        return new Response('File Not Found', {status: 404})
     }
-}
 
-function constructCacheKey(fileName) {
-    // has to be a fully qualified URL
-    return `https://cdn.com/${fileName}`
+    async upload(request) {
+        const cache = caches.default
+        const cacheKey = this.constructCacheKey()
+
+        const raw = await request.text()
+        const fileBlob = dataURLtoBlob(raw)
+
+        const expiryDate = new Date()
+        expiryDate.setDate(expiryDate.getDate() + 30)
+        const cacheResponse = new Response(fileBlob, {
+            headers: {
+                'Cache-Control': 'public, max-age: 2592000',
+                'Expires': expiryDate.toUTCString()
+            }
+        })
+        await cache.put(cacheKey, cacheResponse)
+
+        const {pathname} = new URL(request.url)
+        const fileName = pathname.replace(/\//g, '')
+
+        const requestURL = new URL(request.url)
+        requestURL.pathname = `/${fileName}`
+        return new Response(
+            JSON.stringify({name: fileName}),
+            {headers: {'content-type': 'application/json'}}
+        )
+    }
+
+    async download(request) {
+        const cache = caches.default
+        const cacheKey = this.constructCacheKey()
+
+        const file = await cache.match(cacheKey)
+        if (file) {
+            return file
+        } else {
+            return new Response('File Not Found', {status: 404})
+        }
+    }
 }
 
 function generateUniqueId() {
@@ -94,8 +91,16 @@ function dataURLtoBlob(dataURL) {
 
 export default {
     fetch(request, env) {
-        const proxyId = env.PROXY.idFromName('proxy')
-        const proxyObject = env.PROXY.get(proxyId)
-        return proxyObject.fetch(request)
+        let fileName
+        if (request.method === 'POST') {
+            fileName = generateUniqueId()
+        } else {
+            const {pathname} = new URL(request.url)
+            fileName = pathname.replace(/\//g, '')
+        }
+
+        const fileId = env.FILES.idFromName(fileName)
+        const fileObject = env.FILES.get(fileId)
+        return fileObject.fetch(`/${fileName}`, request)
     }
 }
